@@ -362,13 +362,16 @@
         // Owner Health Stacked
         const ownerHealth = {};
         tasks.forEach(t => {
-            if (!t.owner) return;
-            if (!ownerHealth[t.owner]) ownerHealth[t.owner] = { 'BLOCKED': 0, 'WAITING': 0, 'TO DO': 0, 'ON TRACK': 0 };
+            if (!t.owner || t.owner === 'Unassigned') return;
+            const owners = t.owner.split(',').map(o => o.trim()).filter(o => o);
             let health = 'ON TRACK';
             if (t.healthScore.includes('BLOCKED')) health = 'BLOCKED';
             else if (t.healthScore.includes('WAITING')) health = 'WAITING';
             else if (t.healthScore.includes('TO DO')) health = 'TO DO';
-            ownerHealth[t.owner][health]++;
+            owners.forEach(owner => {
+                if (!ownerHealth[owner]) ownerHealth[owner] = { 'BLOCKED': 0, 'WAITING': 0, 'TO DO': 0, 'ON TRACK': 0 };
+                ownerHealth[owner][health]++;
+            });
         });
 
         const owners = Object.keys(ownerHealth);
