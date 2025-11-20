@@ -130,7 +130,7 @@
                                     <th class="px-4 py-3">Priority</th>
                                     <th class="px-4 py-3">Due Date</th>
                                     <th class="px-4 py-3">Status</th>
-                                    <th class="px-4 py-3">Actions</th>
+                                    <th class="px-4 py-3">Updates</th>
                                 </tr>
                             </thead>
                             <tbody id="master-list-body" class="divide-y divide-slate-100">
@@ -344,9 +344,7 @@
                             <option ${t.status==='Done'?'selected':''}>Done</option>
                         </select>
                     </td>
-                    <td class="px-4 py-3 text-center">
-                        <a href="https://docs.google.com/spreadsheets" target="_blank" class="text-slate-300 hover:text-blue-600" title="Edit in Sheets"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-                    </td>
+                    <td class="px-4 py-3 text-xs text-slate-500">${t.updates || ''}</td>
                 </tr>
             `;
         });
