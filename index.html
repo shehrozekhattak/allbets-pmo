@@ -105,6 +105,15 @@
                     </div>
                 </div>
 
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 bg-purple-50 flex justify-between items-center">
+                        <h3 class="font-bold text-purple-700 text-sm uppercase"><i class="fa-solid fa-link mr-2"></i> Task Dependencies</h3>
+                    </div>
+                    <table class="w-full text-sm text-left">
+                        <tbody id="dashboard-dependencies-list"></tbody>
+                    </table>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                         <h3 class="text-xs font-bold text-slate-400 uppercase mb-4">Status Breakdown</h3>
@@ -265,13 +274,14 @@
         }
     }
 
-    // Health calculation based on healthScore
+    // Health calculation based on status and dependencies
     function calculateHealth(task) {
-        const score = task.healthScore;
-        if (score.includes('BLOCKED')) return { label: 'BLOCKED', color: 'bg-red-100 text-red-700' };
-        if (score.includes('WAITING')) return { label: 'WAITING', color: 'bg-orange-100 text-orange-700' };
-        if (score.includes('TO DO')) return { label: 'TO DO', color: 'bg-gray-100 text-gray-500' };
-        return { label: 'ON TRACK', color: 'bg-blue-50 text-blue-600' };
+        if (task.dependencyHealth === '⛔ BLOCKED') return { label: 'BLOCKED', color: 'bg-red-100 text-red-700' };
+        if (task.status === 'Done') return { label: 'DONE', color: 'bg-green-100 text-green-700' };
+        if (task.status === 'Blocked') return { label: 'BLOCKED', color: 'bg-red-100 text-red-700' };
+        if (task.status === 'Not Started') return { label: 'TO DO', color: 'bg-gray-100 text-gray-500' };
+        if (task.status === 'In Progress') return { label: 'ON TRACK', color: 'bg-blue-50 text-blue-600' };
+        return { label: 'UNKNOWN', color: 'bg-gray-100 text-gray-500' };
     }
 
     function renderAll() {
@@ -283,7 +293,7 @@
     function renderStats() {
         const total = tasks.length;
         const critical = tasks.filter(t => t.priority && t.priority.includes('P1') && t.status !== 'Done').length;
-        const blocked = tasks.filter(t => t.status === 'Blocked').length;
+        const blocked = tasks.filter(t => t.status === 'Blocked' || t.dependencyHealth === '⛔ BLOCKED').length;
         const done = tasks.filter(t => t.status === 'Done').length;
 
         const upcoming = tasks
@@ -309,14 +319,40 @@
     function renderLists() {
         const dashBlocker = document.getElementById('dashboard-blocker-list');
         dashBlocker.innerHTML = '';
-        tasks.filter(t => t.status === 'Blocked').forEach(t => {
-            dashBlocker.innerHTML += `<tr class="border-b border-slate-50 last:border-0"><td class="px-6 py-3 font-medium text-slate-700">${t.name} <span class="block text-xs text-red-500">${t.risksBlockers || 'No detail'}</span></td><td class="px-6 py-3 text-right text-xs text-slate-400">${t.owner}</td></tr>`;
+        tasks.filter(t => t.status === 'Blocked' || t.dependencyHealth === '⛔ BLOCKED').forEach(t => {
+            let detail = t.risksBlockers;
+            if (!detail) {
+                if (t.status === 'Blocked' && t.dependencyHealth === '⛔ BLOCKED') {
+                    detail = 'Status and dependency blocked';
+                } else if (t.status === 'Blocked') {
+                    detail = 'Status blocked';
+                } else if (t.dependencyHealth === '⛔ BLOCKED') {
+                    detail = 'Dependency blocked';
+                } else {
+                    detail = 'No detail';
+                }
+            }
+            dashBlocker.innerHTML += `<tr class="border-b border-slate-50 last:border-0"><td class="px-6 py-3 font-medium text-slate-700">${t.name} <span class="block text-xs text-red-500">${detail}</span></td><td class="px-6 py-3 text-right text-xs text-slate-400">${t.owner}</td></tr>`;
         });
 
         const dashMissing = document.getElementById('dashboard-missing-list');
         dashMissing.innerHTML = '';
-        tasks.filter(t => t.owner === 'Unassigned' || (t.status !== 'Done' && t.missingInfo)).forEach(t => {
-            dashMissing.innerHTML += `<tr class="border-b border-slate-50 last:border-0"><td class="px-6 py-3 font-medium text-slate-700">${t.name} <span class="block text-xs text-orange-500">${t.missingInfo || 'Unassigned / Scoping'}</span></td><td class="px-6 py-3 text-right text-xs text-slate-400">${t.id}</td></tr>`;
+        tasks.filter(t => t.status !== 'Done' && t.missingInfo && t.missingInfo.trim() !== '').forEach(t => {
+            dashMissing.innerHTML += `<tr class="border-b border-slate-50 last:border-0"><td class="px-6 py-3 font-medium text-slate-700">${t.name} <span class="block text-xs text-orange-500">${t.missingInfo}</span></td><td class="px-6 py-3 text-right text-xs text-slate-400">${t.id}</td></tr>`;
+        });
+
+        const taskMap = {};
+        tasks.forEach(t => taskMap[t.id] = t.name);
+
+        const dashDeps = document.getElementById('dashboard-dependencies-list');
+        dashDeps.innerHTML = '';
+        tasks.filter(t => t.dependencies && t.dependencies !== 'N/A' && t.dependencies.trim() !== '').forEach(t => {
+            const depNames = t.dependencies.split(',').map(d => {
+                const id = d.trim();
+                const name = taskMap[id];
+                return name ? `${id}: ${name}` : id;
+            }).join(', ');
+            dashDeps.innerHTML += `<tr class="border-b border-slate-50 last:border-0"><td class="px-6 py-3 font-medium text-slate-700">${t.id}</td><td class="px-6 py-3 text-slate-700">${t.name}</td><td class="px-6 py-3 text-xs text-slate-400">${depNames}</td></tr>`;
         });
 
         const masterBody = document.getElementById('master-list-body');
